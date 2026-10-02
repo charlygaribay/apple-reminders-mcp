@@ -38,5 +38,18 @@ let package = Package(
       name: "RemindersCoreTests",
       dependencies: ["RemindersCore"]
     ),
+    .target(
+      name: "TestSupport",
+      dependencies: ["RemindersCore"],
+      path: "Tests/Support"
+    ),
+    .testTarget(
+      name: "ServerTests",
+      dependencies: [
+        "apple-reminders-mcp",
+        "TestSupport",
+        .product(name: "MCP", package: "swift-sdk"),
+      ]
+    ),
   ]
 )

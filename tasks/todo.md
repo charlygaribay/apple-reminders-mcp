@@ -27,12 +27,12 @@
 **Description:** Define `ReminderListDTO`, `RemindersError`, and the `RemindersStore` protocol (starting with only `listLists()`). Build `ToolRegistry`: tool definitions with JSON Schemas and annotations, a dispatcher, and the single error → `isError` mapping. Implement the `list_lists` tool and an in-memory `FakeRemindersStore`.
 
 **Acceptance criteria:**
-- [ ] `tools/list` returns `list_lists` with `readOnlyHint: true`.
-- [ ] Calling `list_lists` against the fake returns JSON that has each list's id, title, source title, and incomplete count.
-- [ ] A store that throws `accessDenied` produces an `isError` result whose message mentions System Settings → Privacy & Security → Reminders. An unknown tool name also produces `isError`.
+- [x] `tools/list` returns `list_lists` with `readOnlyHint: true`.
+- [x] Calling `list_lists` against the fake returns JSON that has each list's id, title, source title, and incomplete count.
+- [x] A store that throws `accessDenied` produces an `isError` result whose message mentions System Settings → Privacy & Security → Reminders. An unknown tool name also produces `isError`.
 
 **Verification:**
-- [ ] `scripts/test.sh --filter ServerTests`
+- [x] `scripts/test.sh --filter ServerTests`
 
 **Dependencies:** 1
 **Files:** `Sources/RemindersCore/Models.swift`, `Sources/RemindersCore/RemindersStore.swift`, `Sources/apple-reminders-mcp/ToolRegistry.swift`, `Sources/apple-reminders-mcp/Tools/ListLists.swift`, `Tests/Support/FakeRemindersStore.swift`, `Tests/ServerTests/ListListsTests.swift`
