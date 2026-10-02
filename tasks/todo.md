@@ -1,25 +1,25 @@
 # Tasks: Apple Reminders MCP Server
 
 > Plan: [plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
-> Standing verification for every task: `swift build` (zero warnings) and `swift test` pass.
+> Standing verification for every task: `swift build` (zero warnings) and `scripts/test.sh` pass.
 
 ## Phase 1: Foundation & de-risking
 
 ### Task 1: Package skeleton, test harness, and a server that boots over stdio
 
-**Description:** Create `Package.swift` with the three targets plus test targets, add the `swift-sdk` and `swift-argument-parser` dependencies, and write a `main.swift` that starts an MCP `Server` over `StdioTransport` with zero tools. Add one trivial Swift Testing test to prove the harness works under Command Line Tools.
+**Description:** Create `Package.swift` with the three targets plus test targets, add the `swift-sdk` and `swift-argument-parser` dependencies, and write an `@main` `AppleRemindersMCP.swift` that starts an MCP `Server` over `StdioTransport` with zero tools. Add one trivial Swift Testing test to prove the harness works under Command Line Tools.
 
 **Acceptance criteria:**
-- [ ] `swift build` resolves dependencies and builds `apple-reminders-mcp` under Swift 6 language mode.
-- [ ] `swift test` runs at least one `@Test` successfully without Xcode installed.
-- [ ] MCP Inspector connects, completes `initialize`, and shows the server name and version. Nothing but MCP frames goes to stdout.
+- [x] `swift build` resolves dependencies and builds `apple-reminders-mcp` under Swift 6 language mode.
+- [x] `scripts/test.sh` runs at least one `@Test` successfully without Xcode installed.
+- [x] MCP Inspector connects, completes `initialize`, and shows the server name and version. Nothing but MCP frames goes to stdout. *(Verified with a scripted JSON-RPC handshake over stdio. The interactive Inspector check is left for you.)*
 
 **Verification:**
-- [ ] `swift build && swift test`
+- [x] `swift build && scripts/test.sh`
 - [ ] `npx @modelcontextprotocol/inspector .build/debug/apple-reminders-mcp`, which connects successfully
 
 **Dependencies:** None
-**Files:** `Package.swift`, `Sources/apple-reminders-mcp/main.swift`, `Sources/RemindersCore/Models.swift` (placeholder), `Sources/RemindersEventKit/EventKitStore.swift` (placeholder), `Tests/RemindersCoreTests/SmokeTests.swift`
+**Files:** `Package.swift`, `Sources/apple-reminders-mcp/AppleRemindersMCP.swift`, `Sources/RemindersCore/Models.swift` (placeholder), `Sources/RemindersEventKit/EventKitStore.swift` (placeholder), `Tests/RemindersCoreTests/SmokeTests.swift`
 **Scope:** M
 
 ### Task 2: Core store protocol, tool registry, and `list_lists` against the fake store
@@ -32,7 +32,7 @@
 - [ ] A store that throws `accessDenied` produces an `isError` result whose message mentions System Settings → Privacy & Security → Reminders. An unknown tool name also produces `isError`.
 
 **Verification:**
-- [ ] `swift test --filter ServerTests`
+- [ ] `scripts/test.sh --filter ServerTests`
 
 **Dependencies:** 1
 **Files:** `Sources/RemindersCore/Models.swift`, `Sources/RemindersCore/RemindersStore.swift`, `Sources/apple-reminders-mcp/ToolRegistry.swift`, `Sources/apple-reminders-mcp/Tools/ListLists.swift`, `Tests/Support/FakeRemindersStore.swift`, `Tests/ServerTests/ListListsTests.swift`
@@ -40,7 +40,7 @@
 
 ### Task 3: `EventKitStore` with permission handling and a real `list_lists`
 
-**Description:** Implement the `EventKitStore` actor: `ensureAccess()` using `requestFullAccessToReminders()`, plus `listLists()` over `calendars(for: .reminder)`. Embed `Info.plist` through linker flags, then wire the real store into `main.swift`. Add the integration-test harness, which is gated on `REMINDERS_MCP_INTEGRATION=1` and creates and tears down a throwaway list.
+**Description:** Implement the `EventKitStore` actor: `ensureAccess()` using `requestFullAccessToReminders()`, plus `listLists()` over `calendars(for: .reminder)`. Embed `Info.plist` through linker flags, then wire the real store into the entry point. Add the integration-test harness, which is gated on `REMINDERS_MCP_INTEGRATION=1` and creates and tears down a throwaway list.
 
 **Acceptance criteria:**
 - [ ] On first run from Claude Code, macOS shows the Reminders permission prompt (or access is already granted), and `list_lists` returns the real lists.
@@ -48,7 +48,7 @@
 - [ ] The integration test creates a `MCP Test <uuid>` list, sees it in `listLists()`, deletes it, and leaves nothing behind.
 
 **Verification:**
-- [ ] `REMINDERS_MCP_INTEGRATION=1 swift test --filter IntegrationTests`
+- [ ] `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
 - [ ] Manual: `claude mcp add apple-reminders-dev -- $(pwd)/.build/debug/apple-reminders-mcp`, then ask "list my reminder lists"
 
 **Dependencies:** 2
@@ -73,7 +73,7 @@
 - [ ] Every EventKit priority value 0–9 maps to the right `Priority`, and back.
 
 **Verification:**
-- [ ] `swift test --filter RemindersCoreTests`
+- [ ] `scripts/test.sh --filter RemindersCoreTests`
 
 **Dependencies:** 1
 **Files:** `Sources/RemindersCore/DueDateCoding.swift`, `Sources/RemindersCore/Models.swift`, `Tests/RemindersCoreTests/DueDateCodingTests.swift`, `Tests/RemindersCoreTests/PriorityTests.swift`
@@ -89,7 +89,7 @@
 - [ ] An integration test creates a reminder directly through EventKit in the throwaway list and reads it back through the store with matching fields.
 
 **Verification:**
-- [ ] `swift test --filter ServerTests` and `REMINDERS_MCP_INTEGRATION=1 swift test --filter IntegrationTests`
+- [ ] `scripts/test.sh --filter ServerTests` and `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
 
 **Dependencies:** 3, 4
 **Files:** `Sources/RemindersCore/Models.swift`, `Sources/RemindersEventKit/EventKitMapping.swift`, `Sources/RemindersEventKit/EventKitStore.swift`, `Sources/apple-reminders-mcp/Tools/GetReminder.swift`, `Tests/ServerTests/GetReminderTests.swift`
@@ -105,7 +105,7 @@
 - [ ] `limit` 0 or 501 produces `isError`. More matches than `limit` sets `truncated: true` with the correct `totalMatched`.
 
 **Verification:**
-- [ ] `swift test` and the integration test for the EventKit predicate path
+- [ ] `scripts/test.sh` and the integration test for the EventKit predicate path
 - [ ] Manual: ask Claude "what's due this week?"
 
 **Dependencies:** 5
@@ -128,7 +128,7 @@
 - [ ] An integration test creates a reminder in the throwaway list and verifies it through EventKit.
 
 **Verification:**
-- [ ] `swift test` and `REMINDERS_MCP_INTEGRATION=1 swift test --filter IntegrationTests`
+- [ ] `scripts/test.sh` and `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
 
 **Dependencies:** 5
 **Files:** `Sources/RemindersCore/Models.swift`, `Sources/RemindersEventKit/EventKitStore.swift`, `Sources/apple-reminders-mcp/Tools/CreateReminder.swift`, `Tests/ServerTests/CreateReminderTests.swift`, `Tests/IntegrationTests/EventKitStoreTests.swift`
@@ -144,7 +144,7 @@
 - [ ] `set_reminder_completed` toggles both ways and sets or clears `completedAt`.
 
 **Verification:**
-- [ ] `swift test` and the integration tests for patch and move within the throwaway list (plus a second throwaway list for the move)
+- [ ] `scripts/test.sh` and the integration tests for patch and move within the throwaway list (plus a second throwaway list for the move)
 
 **Dependencies:** 7
 **Files:** `Sources/RemindersCore/FieldPatch.swift`, `Sources/RemindersEventKit/EventKitStore.swift`, `Sources/apple-reminders-mcp/Tools/UpdateReminder.swift`, `Sources/apple-reminders-mcp/Tools/SetReminderCompleted.swift`, `Tests/ServerTests/UpdateReminderTests.swift`
@@ -160,7 +160,7 @@
 - [ ] The integration test harness itself now uses `createList` for its throwaway list.
 
 **Verification:**
-- [ ] `swift test` and `REMINDERS_MCP_INTEGRATION=1 swift test --filter IntegrationTests`
+- [ ] `scripts/test.sh` and `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
 
 **Dependencies:** 3
 **Files:** `Sources/RemindersEventKit/EventKitStore.swift`, `Sources/apple-reminders-mcp/Tools/CreateList.swift`, `Sources/apple-reminders-mcp/Tools/RenameList.swift`, `Tests/ServerTests/ListManagementTests.swift`, `Tests/IntegrationTests/EventKitStoreTests.swift`
@@ -183,11 +183,11 @@
 - [ ] In read-only mode, calling `create_reminder` by name produces `isError` "not available in read-only mode".
 
 **Verification:**
-- [ ] `swift test --filter ServerModeTests`
+- [ ] `scripts/test.sh --filter ServerModeTests`
 - [ ] `.build/debug/apple-reminders-mcp --read-only --allow-delete; echo $?` prints non-zero
 
 **Dependencies:** 8, 9
-**Files:** `Sources/apple-reminders-mcp/main.swift`, `Sources/apple-reminders-mcp/ServerMode.swift`, `Sources/apple-reminders-mcp/ToolRegistry.swift`, `Tests/ServerTests/ServerModeTests.swift`
+**Files:** `Sources/apple-reminders-mcp/AppleRemindersMCP.swift`, `Sources/apple-reminders-mcp/ServerMode.swift`, `Sources/apple-reminders-mcp/ToolRegistry.swift`, `Tests/ServerTests/ServerModeTests.swift`
 **Scope:** S
 
 ### Task 11: `delete_reminder` and `delete_list` (gated, with `confirmTitle`)
@@ -200,7 +200,7 @@
 - [ ] Integration: delete a reminder, then the throwaway list itself, through the tools' store paths.
 
 **Verification:**
-- [ ] `swift test` and `REMINDERS_MCP_INTEGRATION=1 swift test --filter IntegrationTests`
+- [ ] `scripts/test.sh` and `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
 
 **Dependencies:** 10
 **Files:** `Sources/RemindersEventKit/EventKitStore.swift`, `Sources/apple-reminders-mcp/Tools/DeleteReminder.swift`, `Sources/apple-reminders-mcp/Tools/DeleteList.swift`, `Tests/ServerTests/DeleteTests.swift`

@@ -25,7 +25,7 @@ A Swift 6 SwiftPM package that produces one stdio MCP binary, `apple-reminders-m
 - [ ] Task 3: `EventKitStore` with permission handling and a real `list_lists`
 
 ### Checkpoint 1: Foundation
-- [ ] `swift build` and `swift test` are clean. Swift Testing confirmed working with Command Line Tools.
+- [ ] `swift build` and `scripts/test.sh` are clean. Swift Testing confirmed working with Command Line Tools.
 - [ ] Claude Code (or Inspector) calls `list_lists` and sees real lists. The permission prompt works.
 - [ ] Review with the human before continuing.
 

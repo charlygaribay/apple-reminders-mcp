@@ -83,11 +83,13 @@ swift build
 # Build (release binary at .build/release/apple-reminders-mcp)
 swift build -c release
 
-# Unit tests (no Reminders access needed; uses the in-memory fake store)
-swift test
+# Unit tests (no Reminders access needed; uses the in-memory fake store).
+# scripts/test.sh wraps `swift test`, adding the Swift Testing search paths when only
+# Command Line Tools are installed. All `swift test` arguments pass through.
+scripts/test.sh
 
 # Integration tests against real Reminders (uses a throwaway list "MCP Test <uuid>", cleaned up after)
-REMINDERS_MCP_INTEGRATION=1 swift test --filter IntegrationTests
+REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests
 
 # Format check / fix (swift-format ships with the Swift 6 toolchain)
 swift format lint --recursive --strict Sources Tests
@@ -121,7 +123,7 @@ Sources/
     EventKitStore.swift               → `RemindersStore` implementation over EKEventStore
     EventKitMapping.swift             → EKReminder ⇄ DTO, priority mapping, DateComponents handling
   apple-reminders-mcp/                → Executable target
-    main.swift                        → ArgumentParser entry point; builds the store and starts the server
+    AppleRemindersMCP.swift           → @main ArgumentParser entry point; builds the store and starts the server
     ToolRegistry.swift                → Tool definitions (JSON Schemas), delete gating, dispatch
     Tools/*.swift                     → One file per tool: decode args → call store → encode result
     Info.plist                        → Embedded into the binary (NSRemindersFullAccessUsageDescription)
@@ -130,6 +132,7 @@ Tests/
   ServerTests/                        → Tool handlers against FakeRemindersStore (schemas, gating, errors)
   IntegrationTests/                   → EventKitStore against real Reminders, skipped unless env var set
   Support/FakeRemindersStore.swift    → In-memory store used by unit tests
+scripts/test.sh                       → `swift test` wrapper (Swift Testing paths under Command Line Tools)
 README.md                             → Setup, permission grant, client registration
 SPEC.md                               → This file
 tasks/                                → plan.md, todo.md (created in the Plan phase)
@@ -184,7 +187,7 @@ public actor EventKitStore: RemindersStore {
 ## Boundaries
 
 - **Always:**
-  - Run `swift build` and `swift test` before declaring a task done.
+  - Run `swift build` and `scripts/test.sh` before declaring a task done.
   - Keep stdout clean for the protocol and log to stderr.
   - Validate tool arguments and return `isError` results instead of throwing out of handlers.
   - Keep EventKit confined to `RemindersEventKit`.
@@ -207,8 +210,8 @@ public actor EventKitStore: RemindersStore {
 ## Success Criteria
 
 - [ ] `swift build -c release` produces `apple-reminders-mcp` with zero warnings under Swift 6 strict concurrency.
-- [ ] `swift test` passes, and every tool plus every error path has a unit test.
-- [ ] `REMINDERS_MCP_INTEGRATION=1 swift test --filter IntegrationTests` passes on this Mac and leaves no test list behind.
+- [ ] `scripts/test.sh` passes, and every tool plus every error path has a unit test.
+- [ ] `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests` passes on this Mac and leaves no test list behind.
 - [ ] MCP Inspector shows 8 tools by default, 10 with `--allow-delete`, and 3 with `--read-only`. Passing both flags exits non-zero.
 - [ ] From Claude Code, stories 1–8 each complete successfully in a real conversation. The results show up in Reminders.app within a few seconds (and sync to iCloud).
 - [ ] With Reminders access revoked in System Settings, every tool returns an `isError` result that names the fix, and the process stays alive.
@@ -218,7 +221,7 @@ public actor EventKitStore: RemindersStore {
 ## Risks / Known Unknowns
 
 1. **TCC permission attribution for a CLI binary.** Under stdio, macOS attributes the Reminders prompt to the *responsible* process (the terminal or the Claude app), not to the binary itself. Without an embedded `Info.plist` containing `NSRemindersFullAccessUsageDescription`, the access request can fail silently. Mitigation: embed the plist with `-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist`, and verify the prompt early, as the first plan task.
-2. **Swift Testing with Command Line Tools only (no Xcode).** This usually works with the Swift 6 toolchain, but it needs to be verified in task 1. Fallback: install Xcode, or use a minimal custom test runner.
+2. ~~**Swift Testing with Command Line Tools only.**~~ **Resolved in task 1:** CLT ships `Testing.framework`, but SwiftPM doesn't search it. `scripts/test.sh` adds the `-F`/rpath flags when CLT is the active developer dir.
 3. **swift-sdk is pre-1.0 (0.12.x).** APIs may change, so pin to `.upToNextMinor(from: "0.12.1")`.
 4. **Read-only / shared lists.** Some lists can't be modified (`allowsContentModifications == false`), so the store must surface `readOnlyList` instead of failing obscurely.
 
