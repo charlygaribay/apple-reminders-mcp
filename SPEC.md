@@ -34,7 +34,7 @@ Build a local [Model Context Protocol](https://modelcontextprotocol.io) server t
 | `title` | string | `title` |
 | `notes` | string \| null | `notes` |
 | `listId` / `listTitle` | string | `calendar.calendarIdentifier` / `.title` |
-| `dueDate` | ISO 8601 string \| null. Date-only `2026-10-09`, or date-time `2026-10-09T17:00:00-06:00` | `dueDateComponents` (date-only → no time components) |
+| `dueDate` | ISO 8601 string \| null. Date-only `2026-10-09`, or date-time `2026-10-09T17:00:00-06:00` (`Z` and `±HHMM` also accepted; seconds optional). A date-time **without** an offset is read in the Mac's local time zone. Output always carries the local offset. | `dueDateComponents` (date-only → no time components) |
 | `priority` | `"none" \| "low" \| "medium" \| "high"` | `priority` 0 / 9 / 5 / 1 |
 | `url` | string \| null | `url` |
 | `completed` | bool | `isCompleted` |

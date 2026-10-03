@@ -19,3 +19,28 @@ public struct ReminderListDTO: Codable, Equatable, Sendable {
     self.incompleteCount = incompleteCount
   }
 }
+
+/// Reminder priority as shown in Reminders.app.
+public enum Priority: String, Codable, CaseIterable, Sendable {
+  case none, low, medium, high
+
+  /// EventKit stores 0 (none) or 1–9, where 1 is highest. Reminders.app writes 1, 5, and 9;
+  /// other apps may write anything in range, so bucket it the way Reminders.app displays it.
+  public init(eventKitValue: Int) {
+    switch eventKitValue {
+    case 1...4: self = .high
+    case 5: self = .medium
+    case 6...9: self = .low
+    default: self = .none
+    }
+  }
+
+  public var eventKitValue: Int {
+    switch self {
+    case .none: 0
+    case .low: 9
+    case .medium: 5
+    case .high: 1
+    }
+  }
+}

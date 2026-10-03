@@ -41,7 +41,7 @@ A Swift 6 SwiftPM package that produces one stdio MCP binary, `apple-reminders-m
 - [ ] Stories 1 and 7 work. The integration run leaves no `MCP Test` lists behind.
 
 ### Phase 3: Reminders, read and create
-- [ ] Task 7: Due-date coding and priority mapping in Core
+- [x] Task 7: Due-date coding and priority mapping in Core
 - [ ] Task 8: `create_reminder` and `get_reminder`
 - [ ] Task 9: `list_reminders` with filters, the 30-day completed default, and truncation
 

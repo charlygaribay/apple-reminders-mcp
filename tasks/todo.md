@@ -130,12 +130,14 @@
 **Description:** Add the `DueDate` enum with ISO 8601 parsing and formatting (date-only `YYYY-MM-DD`, and date-time with an offset or `Z`), conversion to and from `DateComponents`, and the `Priority` enum with EventKit integer mapping (0/9/5/1, with 1–4 → high, 5 → medium, 6–9 → low on read).
 
 **Acceptance criteria:**
-- [ ] Round-trip tests pass for date-only, date-time with an offset, and UTC `Z`. Invalid strings throw `invalidArgument` with the bad value in the message.
-- [ ] Date-only produces `DateComponents` with no hour or minute.
-- [ ] Every EventKit priority value 0–9 maps to the right `Priority`, and back.
+- [x] Round-trip tests pass for date-only, date-time with an offset, and UTC `Z`. Invalid strings throw `invalidArgument` with the bad value in the message.
+- [x] Date-only produces `DateComponents` with no hour or minute.
+- [x] Every EventKit priority value 0–9 maps to the right `Priority`, and back.
 
 **Verification:**
-- [ ] `scripts/test.sh --filter RemindersCoreTests`
+- [x] `scripts/test.sh --filter RemindersCoreTests`
+
+*Done 2026-10-03. Also accepts a date-time without an offset, read in the local time zone (recorded in the SPEC field table). Invalid calendar values (Feb 30, 25:00, skipped DST hours) are rejected rather than rolled over.*
 
 **Dependencies:** 1 (can run in parallel with tasks 4–6)
 **Files:** `Sources/RemindersCore/DueDateCoding.swift`, `Sources/RemindersCore/Models.swift`, `Tests/RemindersCoreTests/{DueDateCodingTests,PriorityTests}.swift`
