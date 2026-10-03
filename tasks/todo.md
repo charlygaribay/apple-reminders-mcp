@@ -90,15 +90,17 @@
 **Description:** The EventKit `createList` and `deleteList` already exist from task 4 (the default source comes from `defaultCalendarForNewReminders()`, and immutable lists throw `readOnlyList`). Cover them end to end. Add `withThrowawayList` to the integration tests: it starts the server with `--allow-delete`, creates `MCP Test <uuid>` through `create_list`, runs the test body, and always deletes the list through `delete_list`.
 
 **Acceptance criteria:**
-- [ ] An end-to-end test creates a throwaway list and sees it in `list_lists`, and after teardown it's gone.
-- [ ] Teardown runs even when the test body throws (verified with a deliberately failing body).
-- [ ] After the full integration run, no `MCP Test` lists remain.
+- [x] An end-to-end test creates a throwaway list and sees it in `list_lists`, and after teardown it's gone.
+- [x] Teardown runs even when the test body throws (verified with a deliberately failing body).
+- [x] After the full integration run, no `MCP Test` lists remain.
 
 **Verification:**
-- [ ] `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
+- [x] `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
+
+*Done 2026-10-03: 7 end-to-end tests in 2.4 s. Before and after the run: 2 lists, 0 `MCP Test` lists.*
 
 **Dependencies:** 4
-**Files:** `Sources/RemindersEventKit/EventKitStore.swift`, `Tests/IntegrationTests/{ThrowawayList.swift,ListManagementEndToEndTests.swift}`
+**Files:** `Tests/IntegrationTests/{ThrowawayList,Payloads,ListManagementEndToEndTests,ListListsEndToEndTests}.swift`
 **Scope:** S
 
 ### Task 6: `rename_list`
@@ -108,7 +110,7 @@
 **Acceptance criteria:**
 - [ ] `rename_list` changes the title, and `list_lists` reflects it.
 - [ ] An empty title, an unknown id, or an immutable list produces a specific `isError`.
-- [ ] An end-to-end test renames a throwaway list.
+- [ ] An end-to-end test renames a throwaway list (keeping the `MCP Test ` prefix), and another proves teardown refuses to delete a list renamed without the prefix (then restores the title and cleans up).
 
 **Verification:**
 - [ ] `scripts/test.sh` and the integration tests
