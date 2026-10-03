@@ -4,6 +4,9 @@ public enum RemindersError: Error, Equatable, Sendable {
   case notFound(kind: String, id: String)
   case invalidArgument(String)
   case readOnlyList(title: String)
+  case unknownSource(title: String, available: [String])
+  /// A destructive call's confirmation didn't match, so nothing was changed.
+  case confirmationMismatch(expected: String, given: String)
 
   /// Human-readable message returned to the MCP client.
   public var message: String {
@@ -22,6 +25,14 @@ public enum RemindersError: Error, Equatable, Sendable {
       return "Invalid argument: \(detail)"
     case .readOnlyList(let title):
       return "List '\(title)' is read-only and can't be modified."
+    case .unknownSource(let title, let available):
+      let names = available.map { "'\($0)'" }.joined(separator: ", ")
+      return "Unknown source '\(title)'. Available sources: \(names)."
+    case .confirmationMismatch(let expected, let given):
+      return """
+        confirmTitle '\(given)' doesn't match the list's title '\(expected)', \
+        so the list was not deleted.
+        """
     }
   }
 }
@@ -29,4 +40,11 @@ public enum RemindersError: Error, Equatable, Sendable {
 /// Access to reminders and lists. Tool handlers depend only on this protocol.
 public protocol RemindersStore: Sendable {
   func listLists() async throws -> [ReminderListDTO]
+
+  /// Creates a list in `sourceTitle`, or in the default reminders source when `nil`.
+  func createList(title: String, sourceTitle: String?) async throws -> ReminderListDTO
+
+  /// Deletes a list and every reminder in it, provided `confirmTitle` exactly matches its title.
+  /// Returns the list as it was before deletion.
+  func deleteList(id: String, confirmTitle: String) async throws -> ReminderListDTO
 }

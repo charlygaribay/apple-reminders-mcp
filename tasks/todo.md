@@ -72,12 +72,14 @@
 **Description:** Add `createList(title:sourceTitle:)` and `deleteList(id:confirmTitle:)` to the protocol and fake. Add a minimal `ServerMode` with `.standard` and `.allowDelete` (from `--allow-delete` or `REMINDERS_MCP_ALLOW_DELETE=1`), and have `ToolRegistry` filter tools by mode, with a dispatcher guard. Implement the `create_list` and `delete_list` tools (`delete_list` carries `destructiveHint`).
 
 **Acceptance criteria:**
-- [ ] The default mode lists `list_lists` and `create_list`, but not `delete_list`. `--allow-delete` adds `delete_list`, and calling `delete_list` by name without the flag produces `isError`.
-- [ ] `create_list` with an empty or whitespace title, or with an unknown `sourceTitle`, produces `isError`. The unknown-source error names the valid sources.
-- [ ] `delete_list` with a mismatched `confirmTitle` produces `isError` and the list survives. A matching title removes it.
+- [x] The default mode lists `list_lists` and `create_list`, but not `delete_list`. `--allow-delete` adds `delete_list`, and calling `delete_list` by name without the flag produces `isError`.
+- [x] `create_list` with an empty or whitespace title, or with an unknown `sourceTitle`, produces `isError`. The unknown-source error names the valid sources.
+- [x] `delete_list` with a mismatched `confirmTitle` produces `isError` and the list survives. A matching title removes it.
 
 **Verification:**
-- [ ] `scripts/test.sh --filter ServerTests`
+- [x] `scripts/test.sh --filter ServerTests`
+
+*Done 2026-10-03. Tools declare a `ToolAccess` (read / write / delete), from which both their MCP annotations and their mode gating are derived. The EventKit `createList` and `deleteList` landed here too, because the protocol requires them. Task 5 adds their end-to-end coverage.*
 
 **Dependencies:** 3
 **Files:** `Sources/RemindersCore/RemindersStore.swift`, `Sources/apple-reminders-mcp/{ServerMode.swift,ToolRegistry.swift,AppleRemindersMCP.swift}`, `Sources/apple-reminders-mcp/Tools/{CreateList,DeleteList}.swift`, `Tests/Support/FakeRemindersStore.swift`, `Tests/ServerTests/ListManagementTests.swift`
@@ -85,7 +87,7 @@
 
 ### Task 5: EventKit `createList` / `deleteList` and the throwaway-list harness
 
-**Description:** Implement both operations in `EventKitStore`. The default source comes from `defaultCalendarForNewReminders()`. Immutable lists throw `readOnlyList`. Add `withThrowawayList` to the integration tests: it starts the server with `--allow-delete`, creates `MCP Test <uuid>` through `create_list`, runs the test body, and always deletes the list through `delete_list`.
+**Description:** The EventKit `createList` and `deleteList` already exist from task 4 (the default source comes from `defaultCalendarForNewReminders()`, and immutable lists throw `readOnlyList`). Cover them end to end. Add `withThrowawayList` to the integration tests: it starts the server with `--allow-delete`, creates `MCP Test <uuid>` through `create_list`, runs the test body, and always deletes the list through `delete_list`.
 
 **Acceptance criteria:**
 - [ ] An end-to-end test creates a throwaway list and sees it in `list_lists`, and after teardown it's gone.

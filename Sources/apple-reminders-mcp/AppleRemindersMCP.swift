@@ -12,11 +12,17 @@ struct AppleRemindersMCP: AsyncParsableCommand {
     version: RemindersCore.serverVersion
   )
 
+  @Flag(help: "Expose the tools that permanently delete reminders and lists.")
+  var allowDelete = false
+
   func run() async throws {
-    let server = await makeServer(registry: ToolRegistry(store: EventKitStore()))
+    let mode = ServerMode.resolve(
+      allowDeleteFlag: allowDelete, environment: ProcessInfo.processInfo.environment)
+    let registry = ToolRegistry(store: EventKitStore(), mode: mode)
+    let server = await makeServer(registry: registry)
     // stdout carries MCP frames only; diagnostics go to stderr.
     try await server.start(transport: StdioTransport())
-    log("server started")
+    log("server started (mode: \(mode))")
     await server.waitUntilCompleted()
   }
 }

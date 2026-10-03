@@ -33,7 +33,7 @@ A Swift 6 SwiftPM package that produces one stdio MCP binary, `apple-reminders-m
 - [ ] `list_lists` works from Claude Code via the launcher, and the grant survives a rebuild. Review with the human.
 
 ### Phase 2: List management & the end-to-end test harness
-- [ ] Task 4: `create_list`, `delete_list`, and the `--allow-delete` gate (fake store)
+- [x] Task 4: `create_list`, `delete_list`, and the `--allow-delete` gate (fake store)
 - [ ] Task 5: EventKit `createList` / `deleteList` and the throwaway-list harness
 - [ ] Task 6: `rename_list`
 

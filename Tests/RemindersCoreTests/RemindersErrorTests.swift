@@ -17,3 +17,18 @@ import Testing
     #expect(RemindersError.readOnlyList(title: "Shared").message.contains("'Shared'"))
   }
 }
+
+@Suite struct ListErrorMessageTests {
+  @Test func unknownSourceListsAvailableSources() {
+    let message = RemindersError.unknownSource(title: "Exchange", available: ["iCloud", "Local"])
+      .message
+    #expect(message == "Unknown source 'Exchange'. Available sources: 'iCloud', 'Local'.")
+  }
+
+  @Test func confirmationMismatchExplainsNothingWasDeleted() {
+    let message = RemindersError.confirmationMismatch(expected: "Work", given: "work").message
+    #expect(message.contains("'work'"))
+    #expect(message.contains("'Work'"))
+    #expect(message.contains("not deleted"))
+  }
+}
