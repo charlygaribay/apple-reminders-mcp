@@ -25,10 +25,18 @@ public actor EventKitStore: RemindersStore {
     return ReminderListDTO(list, incompleteCount: 0)
   }
 
+  public func renameList(id: String, title: String) async throws -> ReminderListDTO {
+    try await ensureAccess()
+    let list = try mutableReminderList(id: id)
+    list.title = title
+    try store.saveCalendar(list, commit: true)
+    let counts = await incompleteCountsByList()
+    return ReminderListDTO(list, incompleteCount: counts[list.calendarIdentifier] ?? 0)
+  }
+
   public func deleteList(id: String, confirmTitle: String) async throws -> ReminderListDTO {
     try await ensureAccess()
-    let list = try reminderList(id: id)
-    guard !list.isImmutable else { throw RemindersError.readOnlyList(title: list.title) }
+    let list = try mutableReminderList(id: id)
     guard confirmTitle == list.title else {
       throw RemindersError.confirmationMismatch(expected: list.title, given: confirmTitle)
     }
@@ -67,6 +75,13 @@ public actor EventKitStore: RemindersStore {
     else {
       throw RemindersError.notFound(kind: "list", id: id)
     }
+    return list
+  }
+
+  /// Like `reminderList(id:)`, but refuses lists the user can't change (e.g. subscribed ones).
+  private func mutableReminderList(id: String) throws -> EKCalendar {
+    let list = try reminderList(id: id)
+    guard !list.isImmutable else { throw RemindersError.readOnlyList(title: list.title) }
     return list
   }
 

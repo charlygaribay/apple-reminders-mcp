@@ -35,7 +35,7 @@ A Swift 6 SwiftPM package that produces one stdio MCP binary, `apple-reminders-m
 ### Phase 2: List management & the end-to-end test harness
 - [x] Task 4: `create_list`, `delete_list`, and the `--allow-delete` gate (fake store)
 - [x] Task 5: EventKit `createList` / `deleteList` and the throwaway-list harness
-- [ ] Task 6: `rename_list`
+- [x] Task 6: `rename_list`
 
 ### Checkpoint 2: Lists
 - [ ] Stories 1 and 7 work. The integration run leaves no `MCP Test` lists behind.

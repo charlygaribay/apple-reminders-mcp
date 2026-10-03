@@ -108,19 +108,20 @@
 **Description:** Add `renameList(id:title:)` to the protocol, fake, and EventKit store, plus the tool.
 
 **Acceptance criteria:**
-- [ ] `rename_list` changes the title, and `list_lists` reflects it.
-- [ ] An empty title, an unknown id, or an immutable list produces a specific `isError`.
-- [ ] An end-to-end test renames a throwaway list (keeping the `MCP Test ` prefix), and another proves teardown refuses to delete a list renamed without the prefix (then restores the title and cleans up).
+- [x] `rename_list` changes the title, and `list_lists` reflects it.
+- [x] An empty title, an unknown id, or an immutable list produces a specific `isError`.
+- [x] An end-to-end test renames a throwaway list (keeping the `MCP Test ` prefix), and another proves teardown refuses to delete a list renamed without the prefix (then restores the title and cleans up).
 
 **Verification:**
-- [ ] `scripts/test.sh` and the integration tests
+- [x] `scripts/test.sh` and the integration tests
 
 **Dependencies:** 5
 **Files:** `Sources/RemindersCore/RemindersStore.swift`, `Sources/RemindersEventKit/EventKitStore.swift`, `Sources/apple-reminders-mcp/Tools/RenameList.swift`, `Tests/ServerTests/ListManagementTests.swift`, `Tests/IntegrationTests/ListManagementEndToEndTests.swift`
 **Scope:** S
 
 ## Checkpoint 2: Lists
-- [ ] Stories 1 and 7 work from Claude Code. The integration run leaves no `MCP Test` lists behind.
+- [x] The integration run leaves no `MCP Test` lists behind (9 end-to-end tests, 2.9 s, 2 lists before and after).
+- [ ] Stories 1 and 7 work from Claude Code. *(Manual check for you.)*
 
 ## Phase 3: Reminders, read and create
 

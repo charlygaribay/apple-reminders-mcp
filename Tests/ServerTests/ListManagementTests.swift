@@ -147,3 +147,47 @@ private let work = ReminderListDTO(
     #expect(await store.lists == [work])
   }
 }
+
+@Suite struct RenameListTests {
+  @Test func renamesAndReturnsTheList() async throws {
+    let store = FakeRemindersStore(lists: [work])
+    let client = try await TestClient(store: store)
+    let result = try await client.callDecoding(
+      ListResult.self, "rename_list", ["id": "L-work", "title": " Office "])
+    #expect(result.list.id == "L-work")
+    #expect(result.list.title == "Office")
+    #expect(await store.lists.map(\.title) == ["Office"])
+  }
+
+  @Test func isAWriteTool() async throws {
+    let client = try await TestClient(store: FakeRemindersStore())
+    let tool = try #require(try await client.listTools().first { $0.name == "rename_list" })
+    #expect(tool.annotations.readOnlyHint == false)
+    #expect(tool.annotations.destructiveHint == false)
+  }
+
+  @Test func blankTitleIsRejected() async throws {
+    let store = FakeRemindersStore(lists: [work])
+    let (text, isError) = try await TestClient(store: store).call(
+      "rename_list", ["id": "L-work", "title": "  "])
+    #expect(isError)
+    #expect(text.contains("'title' must not be empty"))
+    #expect(await store.lists == [work])
+  }
+
+  @Test func unknownIdIsNotFound() async throws {
+    let (text, isError) = try await TestClient(store: FakeRemindersStore()).call(
+      "rename_list", ["id": "nope", "title": "X"])
+    #expect(isError)
+    #expect(text == "list not found: nope")
+  }
+
+  @Test func immutableListIsRefused() async throws {
+    let store = FakeRemindersStore(lists: [work], immutableListIDs: ["L-work"])
+    let (text, isError) = try await TestClient(store: store).call(
+      "rename_list", ["id": "L-work", "title": "Office"])
+    #expect(isError)
+    #expect(text.contains("read-only"))
+    #expect(await store.lists == [work])
+  }
+}

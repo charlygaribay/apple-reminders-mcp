@@ -44,6 +44,8 @@ public protocol RemindersStore: Sendable {
   /// Creates a list in `sourceTitle`, or in the default reminders source when `nil`.
   func createList(title: String, sourceTitle: String?) async throws -> ReminderListDTO
 
+  func renameList(id: String, title: String) async throws -> ReminderListDTO
+
   /// Deletes a list and every reminder in it, provided `confirmTitle` exactly matches its title.
   /// Returns the list as it was before deletion.
   func deleteList(id: String, confirmTitle: String) async throws -> ReminderListDTO

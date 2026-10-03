@@ -69,6 +69,7 @@ struct ToolRegistry: Sendable {
   static let allHandlers: [ToolHandler] = [
     ListLists.handler,
     CreateList.handler,
+    RenameList.handler,
     DeleteList.handler,
   ]
 
