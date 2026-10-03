@@ -6,6 +6,7 @@ import Testing
   @Test func accessDeniedPointsToSystemSettings() {
     let message = RemindersError.accessDenied.message
     #expect(message.contains("System Settings → Privacy & Security → Reminders"))
+    #expect(message.contains("apple-reminders-mcp-launch"))
   }
 
   @Test func notFoundNamesKindAndId() {

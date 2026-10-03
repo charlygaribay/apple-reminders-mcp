@@ -1,6 +1,6 @@
-import Foundation
 import MCP
 import RemindersCore
+import TestSupport
 
 @testable import apple_reminders_mcp
 
@@ -21,28 +21,15 @@ struct TestClient {
     try await client.listTools().tools
   }
 
-  /// Calls a tool and returns its single text content block.
   func call(_ name: String, _ arguments: [String: Value]? = nil) async throws -> (
     text: String, isError: Bool
   ) {
-    let result = try await client.callTool(name: name, arguments: arguments)
-    guard result.content.count == 1, case .text(let text, _, _) = result.content[0] else {
-      throw TestClientError.unexpectedContent(result.content)
-    }
-    return (text, result.isError ?? false)
+    try await client.callText(name, arguments)
   }
 
-  /// Calls a tool expected to succeed and decodes its JSON payload.
-  func callDecoding<T: Decodable>(
+  func callDecoding<T: Decodable & Sendable>(
     _ type: T.Type, _ name: String, _ arguments: [String: Value]? = nil
   ) async throws -> T {
-    let (text, isError) = try await call(name, arguments)
-    guard !isError else { throw TestClientError.toolError(text) }
-    return try JSONDecoder().decode(T.self, from: Data(text.utf8))
+    try await client.callDecoding(type, name, arguments)
   }
-}
-
-enum TestClientError: Error {
-  case unexpectedContent([Tool.Content])
-  case toolError(String)
 }

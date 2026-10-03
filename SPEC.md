@@ -73,47 +73,51 @@ Every tool returns its result as JSON text content. Failures come back as MCP to
   - No other runtime dependencies without asking.
 - **Build system:** Swift Package Manager. No Xcode project (only Command Line Tools are installed).
 - **Transport:** stdio only.
+- **Two binaries:** `apple-reminders-mcp` (the server) and `apple-reminders-mcp-launch` (what MCP clients run). The launcher re-execs the server in place with the private `responsibility_spawnattrs_setdisclaim` spawn attribute, which it looks up at runtime. That makes the server its own TCC-responsible process. The private API lives only in the launcher (see Resolved Decisions 4).
+- **Code signing:** `scripts/build.sh` signs both binaries with a stable identity (default: a self-signed `apple-reminders-mcp dev` certificate in the login keychain), so the Reminders grant survives rebuilds.
 
 ## Commands
 
 ```bash
-# Build (debug)
-swift build
+# Build + sign (debug). scripts/build.sh wraps `swift build`, forwarding all arguments,
+# then signs both binaries so the Reminders grant survives rebuilds.
+scripts/build.sh
 
-# Build (release binary at .build/release/apple-reminders-mcp)
-swift build -c release
+# Build + sign (release binaries in .build/release/)
+scripts/build.sh -c release
 
 # Unit tests (no Reminders access needed; uses the in-memory fake store).
 # scripts/test.sh wraps `swift test`, adding the Swift Testing search paths when only
 # Command Line Tools are installed. All `swift test` arguments pass through.
 scripts/test.sh
 
-# Integration tests against real Reminders (uses a throwaway list "MCP Test <uuid>", cleaned up after)
+# Integration tests: run the built launcher + server over stdio against real Reminders.
+# Builds and signs first. Writes happen only in a throwaway list "MCP Test <uuid>", deleted after.
 REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests
 
 # Format check / fix (swift-format ships with the Swift 6 toolchain)
 swift format lint --recursive --strict Sources Tests
 swift format --in-place --recursive Sources Tests
 
-# Run the server manually (speaks MCP over stdio)
-.build/release/apple-reminders-mcp
-.build/release/apple-reminders-mcp --allow-delete
-.build/release/apple-reminders-mcp --read-only
+# Run the server manually (speaks MCP over stdio). Always go through the launcher.
+.build/release/apple-reminders-mcp-launch
+.build/release/apple-reminders-mcp-launch --allow-delete
+.build/release/apple-reminders-mcp-launch --read-only
 
 # Interactive debugging with the MCP Inspector
-npx @modelcontextprotocol/inspector .build/release/apple-reminders-mcp
+npx @modelcontextprotocol/inspector .build/release/apple-reminders-mcp-launch
 
-# Install for personal use
-mkdir -p ~/.local/bin && cp .build/release/apple-reminders-mcp ~/.local/bin/
+# Install for personal use (both binaries must sit in the same directory)
+mkdir -p ~/.local/bin && cp .build/release/apple-reminders-mcp .build/release/apple-reminders-mcp-launch ~/.local/bin/
 
-# Register with Claude Code
-claude mcp add apple-reminders -- ~/.local/bin/apple-reminders-mcp
+# Register with Claude Code (register the launcher, not the server)
+claude mcp add apple-reminders -- ~/.local/bin/apple-reminders-mcp-launch
 ```
 
 ## Project Structure
 
 ```
-Package.swift                         → SwiftPM manifest: 3 targets + test targets
+Package.swift                         → SwiftPM manifest: 4 targets + test targets
 Sources/
   RemindersCore/                      → Pure domain layer, no MCP and no EventKit
     Models.swift                      → ReminderDTO, ReminderListDTO, Priority, DueDate, ReminderQuery, patch types
@@ -127,18 +131,22 @@ Sources/
     ToolRegistry.swift                → Tool definitions (JSON Schemas), delete gating, dispatch
     Tools/*.swift                     → One file per tool: decode args → call store → encode result
     Info.plist                        → Embedded into the binary (NSRemindersFullAccessUsageDescription)
+  apple-reminders-mcp-launch/         → Launcher executable (the only code using private API)
+    Launcher.swift                    → Re-execs the sibling server as its own TCC-responsible process
 Tests/
   RemindersCoreTests/                 → Date coding, query/patch validation
   ServerTests/                        → Tool handlers against FakeRemindersStore (schemas, gating, errors)
-  IntegrationTests/                   → EventKitStore against real Reminders, skipped unless env var set
-  Support/FakeRemindersStore.swift    → In-memory store used by unit tests
+  LauncherTests/                      → Launcher path resolution
+  IntegrationTests/                   → Built launcher + server over stdio, against real Reminders (opt-in)
+  Support/                            → FakeRemindersStore + MCP client helpers shared by test targets
+scripts/build.sh                      → `swift build` wrapper that signs both binaries with a stable identity
 scripts/test.sh                       → `swift test` wrapper (Swift Testing paths under Command Line Tools)
 README.md                             → Setup, permission grant, client registration
 SPEC.md                               → This file
 tasks/                                → plan.md, todo.md (created in the Plan phase)
 ```
 
-Dependency direction: `apple-reminders-mcp` → `RemindersEventKit` → `RemindersCore`. `RemindersCore` imports only Foundation.
+Dependency direction: `apple-reminders-mcp` → `RemindersEventKit` → `RemindersCore`. `RemindersCore` imports only Foundation. `apple-reminders-mcp-launch` depends on nothing in the package. It finds the server by path at runtime.
 
 ## Code Style
 
@@ -179,10 +187,13 @@ public actor EventKitStore: RemindersStore {
 - **Unit (bulk of the coverage):**
   - `RemindersCoreTests`: due-date parsing and formatting (date-only vs date-time, time zones, invalid input), priority mapping, query validation (limit bounds, date range order), and patch semantics (absent vs `null`).
   - `ServerTests`: drive the tool handlers with `FakeRemindersStore`. Cover every tool's success path, argument validation errors, the `notFound` / `accessDenied` → `isError` mapping, the tool set for each mode (default 8 / `--allow-delete` 10 / `--read-only` 3), `--read-only` + `--allow-delete` rejected at startup, the 30-day default window for completed reminders, `delete_list` rejecting a mismatched `confirmTitle`, and truncation reporting.
-- **Integration (opt-in):** `IntegrationTests` exercise `EventKitStore` against real Reminders. The suite only runs when `REMINDERS_MCP_INTEGRATION=1`. It creates a uniquely named throwaway list, does all its work inside that list, and deletes the list in teardown. **It never reads or modifies any other list.**
+- **Integration (opt-in, end to end):** `IntegrationTests` start the built `apple-reminders-mcp-launch` as a child process and talk to it with the SDK's MCP client over stdio, which is exactly what real clients do. The suite only runs when `REMINDERS_MCP_INTEGRATION=1`.
+  - **Why not in-process:** the test runner can't use EventKit itself. macOS attributes its requests to the app that launched it (Claude Code, Terminal), and none of those declare Reminders usage, so access is refused. Only the server binary, which goes through the launcher, holds the grant.
+  - **Throwaway-list harness:** each test that writes creates a uniquely named list through `create_list`, works only inside it, and deletes it through `delete_list` (the server runs with `--allow-delete`). Tests may read other lists (e.g. `list_lists` returns everything), but they only assert on their own list, and they **never modify or print other lists' contents.**
+  - **Before the harness exists** (until `create_list` and `delete_list` land), the only end-to-end test is the read-only `list_lists` one.
 - **Manual smoke test:** before calling v1 done, run each tool once through MCP Inspector and once from Claude Code.
 - **Coverage target:** every tool handler and every `RemindersError` path is covered by at least one unit test. There's no numeric % gate.
-- **TDD:** write the failing test first for Core and Server logic. EventKit mapping is checked through integration tests.
+- **TDD:** write the failing test first for Core and Server logic. EventKit mapping is checked through the end-to-end integration tests.
 
 ## Boundaries
 
@@ -190,7 +201,8 @@ public actor EventKitStore: RemindersStore {
   - Run `swift build` and `scripts/test.sh` before declaring a task done.
   - Keep stdout clean for the protocol and log to stderr.
   - Validate tool arguments and return `isError` results instead of throwing out of handlers.
-  - Keep EventKit confined to `RemindersEventKit`.
+  - Keep EventKit confined to `RemindersEventKit`, and private API confined to the launcher.
+  - Build through `scripts/build.sh` so binaries keep a stable signature.
   - Make integration tests touch only their own throwaway list.
   - Update this spec when a decision changes.
 - **Ask first:**
@@ -200,6 +212,8 @@ public actor EventKitStore: RemindersStore {
   - Adding fields or features that are out of scope.
   - Running anything that writes to the user's **real** reminders, outside the throwaway integration-test list.
   - Changing the delete-gating or read-only behavior.
+  - Using any other private or underscored API.
+  - Touching the user's keychain, certificates, or TCC/privacy settings. Tell the user what to do instead.
 - **Never:**
   - Delete or modify the user's real reminders or lists during development or testing.
   - Expose delete tools without the opt-in flag.
@@ -209,18 +223,20 @@ public actor EventKitStore: RemindersStore {
 
 ## Success Criteria
 
-- [ ] `swift build -c release` produces `apple-reminders-mcp` with zero warnings under Swift 6 strict concurrency.
+- [ ] `scripts/build.sh -c release` produces both binaries, signed with the stable identity, with zero warnings under Swift 6 strict concurrency.
 - [ ] `scripts/test.sh` passes, and every tool plus every error path has a unit test.
 - [ ] `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests` passes on this Mac and leaves no test list behind.
-- [ ] MCP Inspector shows 8 tools by default, 10 with `--allow-delete`, and 3 with `--read-only`. Passing both flags exits non-zero.
+- [ ] Through the launcher, MCP Inspector shows 8 tools by default, 10 with `--allow-delete`, and 3 with `--read-only`. Passing both flags exits non-zero.
 - [ ] From Claude Code, stories 1–8 each complete successfully in a real conversation. The results show up in Reminders.app within a few seconds (and sync to iCloud).
 - [ ] With Reminders access revoked in System Settings, every tool returns an `isError` result that names the fix, and the process stays alive.
 - [ ] `list_reminders` on a store with ~1,000 reminders returns in under 2 s.
-- [ ] README documents build, install, permission grant, and Claude Code registration.
+- [ ] Rebuilding and reinstalling doesn't trigger a new Reminders prompt.
+- [ ] README documents certificate setup, build, install, permission grant, and Claude Code registration (via the launcher).
 
 ## Risks / Known Unknowns
 
-1. **TCC permission attribution for a CLI binary.** Under stdio, macOS attributes the Reminders prompt to the *responsible* process (the terminal or the Claude app), not to the binary itself. Without an embedded `Info.plist` containing `NSRemindersFullAccessUsageDescription`, the access request can fail silently. Mitigation: embed the plist with `-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist`, and verify the prompt early, as the first plan task.
+1. ~~**TCC permission attribution for a CLI binary.**~~ **Resolved in task 3.** macOS attributes the request to the responsible process: the MCP client, e.g. `com.anthropic.claude-code`. TCC then refuses access *without prompting*, because that app has no `NSRemindersUsageDescription` (Terminal, Claude, and VS Code don't either). The embedded plist alone doesn't help. Fix: the launcher (Resolved Decisions 4). Remaining risk: Apple could change the private spawn attribute. If the lookup fails, the launcher warns on stderr and execs normally, and the server then reports `accessDenied`.
+5. **TCC grant tied to the code signature.** Found in task 3: ad-hoc signatures change on every build, so the grant was lost after each rebuild and macOS re-prompted. Fixed by stable signing (Resolved Decisions 5). The grant is also per binary path, so the installed copy gets its own one-time prompt.
 2. ~~**Swift Testing with Command Line Tools only.**~~ **Resolved in task 1:** CLT ships `Testing.framework`, but SwiftPM doesn't search it. `scripts/test.sh` adds the `-F`/rpath flags when CLT is the active developer dir.
 3. **swift-sdk is pre-1.0 (0.12.x).** APIs may change, so pin to `.upToNextMinor(from: "0.12.1")`.
 4. **Read-only / shared lists.** Some lists can't be modified (`allowsContentModifications == false`), so the store must surface `readOnlyList` instead of failing obscurely.
@@ -230,3 +246,6 @@ public actor EventKitStore: RemindersStore {
 1. `delete_list` has no `force` flag. A matching `confirmTitle` is enough, and it deletes the list together with its reminders.
 2. Completed reminders default to the last 30 days, unless the caller passes an explicit completion-date range.
 3. A `--read-only` flag exposes only the 3 read tools, and it can't be combined with `--allow-delete`.
+4. **Launcher for TCC attribution.** MCP clients run `apple-reminders-mcp-launch`, which re-execs the sibling `apple-reminders-mcp` as its own responsible process. That way macOS prompts for the server, using its embedded Info.plist. The private spawn API is confined to the launcher, so the server itself uses only public API.
+5. **Stable code signing.** A self-signed `apple-reminders-mcp dev` code-signing certificate, which the user creates once in Keychain Access, signs both binaries in `scripts/build.sh`, so the Reminders grant persists across rebuilds and upgrades.
+6. **End-to-end integration tests.** Integration tests drive the real launcher and server over stdio, and the throwaway-list harness uses `create_list` and `delete_list`. List management and delete gating therefore move up in the plan, right after task 3.

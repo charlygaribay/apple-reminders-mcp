@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import MCP
 import RemindersCore
+import RemindersEventKit
 
 @main
 struct AppleRemindersMCP: AsyncParsableCommand {
@@ -12,15 +13,7 @@ struct AppleRemindersMCP: AsyncParsableCommand {
   )
 
   func run() async throws {
-    let server = Server(
-      name: RemindersCore.serverName,
-      version: RemindersCore.serverVersion,
-      capabilities: .init(tools: .init(listChanged: false))
-    )
-    await server.withMethodHandler(ListTools.self) { _ in
-      .init(tools: [])
-    }
-
+    let server = await makeServer(registry: ToolRegistry(store: EventKitStore()))
     // stdout carries MCP frames only; diagnostics go to stderr.
     try await server.start(transport: StdioTransport())
     log("server started")

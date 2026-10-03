@@ -9,11 +9,12 @@ public enum RemindersError: Error, Equatable, Sendable {
   public var message: String {
     switch self {
     case .accessDenied:
-      // The grant belongs to the process that launched the server, not the binary itself.
+      // Without the launcher, macOS attributes the request to the MCP client and refuses it.
       return """
-        Reminders access is not granted. Open System Settings → Privacy & Security → Reminders, \
-        give full access to the app that launched this server (e.g. Terminal or Claude), \
-        then restart the server.
+        Reminders access is not granted. Make sure your MCP client runs \
+        apple-reminders-mcp-launch (not apple-reminders-mcp directly) and allow access when \
+        macOS prompts. If access was denied before, enable apple-reminders-mcp in \
+        System Settings → Privacy & Security → Reminders, then restart the server.
         """
     case .notFound(let kind, let id):
       return "\(kind) not found: \(id)"

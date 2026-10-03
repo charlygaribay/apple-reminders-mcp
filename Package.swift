@@ -1,6 +1,13 @@
 // swift-tools-version: 6.0
 
+import Foundation
 import PackageDescription
+
+// Embedding an Info.plist gives the binary a Reminders usage description; without one,
+// macOS can refuse the access request for a bare command-line tool.
+let infoPlist = URL(fileURLWithPath: #filePath)
+  .deletingLastPathComponent()
+  .appendingPathComponent("Sources/apple-reminders-mcp/Info.plist").path
 
 let package = Package(
   name: "apple-reminders-mcp",
@@ -9,7 +16,9 @@ let package = Package(
     .macOS(.v14)
   ],
   products: [
-    .executable(name: "apple-reminders-mcp", targets: ["apple-reminders-mcp"])
+    .executable(name: "apple-reminders-mcp", targets: ["apple-reminders-mcp"]),
+    // What MCP clients launch; see Sources/apple-reminders-mcp-launch/Launcher.swift.
+    .executable(name: "apple-reminders-mcp-launch", targets: ["apple-reminders-mcp-launch"]),
   ],
   dependencies: [
     // Pre-1.0: pin to the minor version so API changes don't arrive unannounced.
@@ -32,16 +41,36 @@ let package = Package(
         "RemindersEventKit",
         .product(name: "MCP", package: "swift-sdk"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
+      ],
+      exclude: ["Info.plist"],
+      linkerSettings: [
+        .unsafeFlags([
+          "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist",
+          "-Xlinker", infoPlist,
+        ])
       ]
     ),
+    .executableTarget(name: "apple-reminders-mcp-launch"),
     .testTarget(
       name: "RemindersCoreTests",
       dependencies: ["RemindersCore"]
     ),
     .target(
       name: "TestSupport",
-      dependencies: ["RemindersCore"],
+      dependencies: ["RemindersCore", .product(name: "MCP", package: "swift-sdk")],
       path: "Tests/Support"
+    ),
+    .testTarget(
+      name: "LauncherTests",
+      dependencies: ["apple-reminders-mcp-launch"]
+    ),
+    .testTarget(
+      name: "IntegrationTests",
+      dependencies: [
+        "RemindersCore",
+        "TestSupport",
+        .product(name: "MCP", package: "swift-sdk"),
+      ]
     ),
     .testTarget(
       name: "ServerTests",

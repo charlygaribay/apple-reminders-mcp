@@ -16,45 +16,51 @@ A Swift 6 SwiftPM package that produces one stdio MCP binary, `apple-reminders-m
 - **Due dates:** Core's `DueDate` enum has two cases, `.date(y,m,d)` and `.dateTime(Date)`. It maps to `DateComponents` (date-only means no hour/minute) so Reminders.app shows "all-day" vs timed correctly.
 - **Query execution:** EventKit predicates handle the coarse filtering (incomplete with a due range, completed with a completion range defaulting to the last 30 days, scoped to calendars). Text match, overdue, and limit/truncation are applied in memory in Core. That way the same filtering code is tested against the fake store.
 - **Permission:** the `Info.plist` with `NSRemindersFullAccessUsageDescription` is embedded through linker `-sectcreate` flags in `Package.swift`. `ensureAccess()` caches the granted state per process.
+- **Launcher:** `apple-reminders-mcp-launch` re-execs the sibling server in place, disclaiming TCC responsibility, so macOS attributes the request to the server and not to the MCP client. It's the only code that uses private API.
+- **Stable signing:** `scripts/build.sh` signs both binaries with the `apple-reminders-mcp dev` identity, so the grant (which macOS ties to the signature) survives rebuilds.
+- **End-to-end integration tests:** these drive the built launcher over stdio with the SDK client. The test runner itself can't get Reminders access.
 
 ## Task List
 
+*Reordered after task 3 (2026-10-03). Integration tests now run end to end through the launcher, and their throwaway-list harness needs `create_list` and `delete_list`, so list management moves up. Details are in [todo.md](todo.md).*
+
 ### Phase 1: Foundation & de-risking
-- [ ] Task 1: Package skeleton, test harness, and a server that boots over stdio
-- [ ] Task 2: Core store protocol, tool registry, and `list_lists` against the fake store
-- [ ] Task 3: `EventKitStore` with permission handling and a real `list_lists`
+- [x] Task 1: Package skeleton, test harness, and a server that boots over stdio
+- [x] Task 2: Core store protocol, tool registry, and `list_lists` against the fake store
+- [ ] Task 3: `EventKitStore`, permission handling, the launcher, and a real `list_lists` *(waiting on the signing certificate)*
 
 ### Checkpoint 1: Foundation
-- [ ] `swift build` and `scripts/test.sh` are clean. Swift Testing confirmed working with Command Line Tools.
-- [ ] Claude Code (or Inspector) calls `list_lists` and sees real lists. The permission prompt works.
-- [ ] Review with the human before continuing.
+- [ ] `list_lists` works from Claude Code via the launcher, and the grant survives a rebuild. Review with the human.
 
-### Phase 2: Read path
-- [ ] Task 4: Due-date coding and priority mapping in Core
-- [ ] Task 5: `get_reminder` end to end
-- [ ] Task 6: `list_reminders` with filters, the 30-day completed default, and truncation
+### Phase 2: List management & the end-to-end test harness
+- [ ] Task 4: `create_list`, `delete_list`, and the `--allow-delete` gate (fake store)
+- [ ] Task 5: EventKit `createList` / `deleteList` and the throwaway-list harness
+- [ ] Task 6: `rename_list`
 
-### Checkpoint 2: Read path
-- [ ] All 3 read tools work from Claude Code against real data.
+### Checkpoint 2: Lists
+- [ ] Stories 1 and 7 work. The integration run leaves no `MCP Test` lists behind.
 
-### Phase 3: Write path
-- [ ] Task 7: `create_reminder` end to end
-- [ ] Task 8: `update_reminder` (partial patch and move) and `set_reminder_completed`
-- [ ] Task 9: `create_list` and `rename_list`
+### Phase 3: Reminders, read and create
+- [ ] Task 7: Due-date coding and priority mapping in Core
+- [ ] Task 8: `create_reminder` and `get_reminder`
+- [ ] Task 9: `list_reminders` with filters, the 30-day completed default, and truncation
 
-### Checkpoint 3: Write path
-- [ ] Stories 1–7 work from Claude Code. The integration suite passes and leaves no test list behind.
+### Checkpoint 3: Read & create
+- [ ] Stories 1–4 work from Claude Code. Review with the human.
 
-### Phase 4: Modes & destructive tools
-- [ ] Task 10: Server modes (`--read-only`, `--allow-delete`, env vars, conflict check)
-- [ ] Task 11: `delete_reminder` and `delete_list` (gated, with `confirmTitle`)
+### Phase 4: Updating reminders
+- [ ] Task 10: `update_reminder` (partial patch and move) and `set_reminder_completed`
 
-### Checkpoint 4: Modes
+### Phase 5: Remaining modes & deletes
+- [ ] Task 11: `--read-only` mode, the env vars, and the conflict check
+- [ ] Task 12: `delete_reminder`
+
+### Checkpoint 4: All tools
 - [ ] Tool counts are 8 / 10 / 3 by mode. Passing both flags exits non-zero.
 
-### Phase 5: Hardening & docs
-- [ ] Task 12: Access-denied UX check and performance check
-- [ ] Task 13: README, install, and the final manual smoke test of all stories
+### Phase 6: Hardening & docs
+- [ ] Task 13: Access-denied UX check and performance check
+- [ ] Task 14: README, install, and the final manual smoke test
 
 ### Checkpoint: Complete
 - [ ] Every Success Criteria item in SPEC.md is checked.
@@ -63,10 +69,12 @@ A Swift 6 SwiftPM package that produces one stdio MCP binary, `apple-reminders-m
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Swift Testing doesn't run under Command Line Tools alone | High | Task 1 proves it first. Fallback: install Xcode (ask the human). |
-| The Reminders permission prompt never appears for a stdio child process, or it's attributed to the wrong app | High | Task 3: embed `Info.plist`, then test from both Terminal and Claude Code. Document which app needs the grant in System Settings. |
+| ~~Swift Testing doesn't run under Command Line Tools alone~~ | — | Resolved in task 1 by `scripts/test.sh`. |
+| ~~The Reminders prompt never appears for a stdio child process~~ | — | Confirmed in task 3 (refused silently, attributed to Claude Code). Resolved by the launcher. |
+| The private disclaim API changes in a future macOS | Med | The lookup is at runtime. On failure the launcher warns and execs normally, and the server returns its access-denied guidance. |
+| The grant is lost on rebuild or upgrade (ad-hoc signature) | Med | Stable self-signed identity via `scripts/build.sh`. |
 | `swift-sdk` 0.12.x API differs from what's expected | Med | Pin `.upToNextMinor(from: "0.12.1")`. Task 1 confirms the server/transport API before anything else gets built on it. |
-| Integration tests touch real data | High | Each test only operates on a list it created (a UUID-named list). Teardown deletes that list. Integration tests never query outside that list's id. |
+| Integration tests touch real data | High | Each test only writes inside a UUID-named list it created via `create_list`. Teardown always deletes it via `delete_list`. Assertions are scoped to that list's id. |
 | EventKit fetches are slow on big stores | Low | Calendar-scoped predicates plus the 30-day completed default. Measured in task 12. |
 | Shared / read-only lists | Low | Check `allowsContentModifications` and throw `readOnlyList`. Covered in tasks 7–9. |
 

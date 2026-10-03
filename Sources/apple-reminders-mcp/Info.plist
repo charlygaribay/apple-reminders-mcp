@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.charlygaribay.apple-reminders-mcp</string>
+	<key>CFBundleName</key>
+	<string>apple-reminders-mcp</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>apple-reminders-mcp reads and manages your reminders on behalf of your AI assistant.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>apple-reminders-mcp reads and manages your reminders on behalf of your AI assistant.</string>
+</dict>
+</plist>
