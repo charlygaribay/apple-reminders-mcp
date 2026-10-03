@@ -27,7 +27,7 @@ A Swift 6 SwiftPM package that produces one stdio MCP binary, `apple-reminders-m
 ### Phase 1: Foundation & de-risking
 - [x] Task 1: Package skeleton, test harness, and a server that boots over stdio
 - [x] Task 2: Core store protocol, tool registry, and `list_lists` against the fake store
-- [ ] Task 3: `EventKitStore`, permission handling, the launcher, and a real `list_lists` *(waiting on the signing certificate)*
+- [x] Task 3: `EventKitStore`, permission handling, the launcher, and a real `list_lists`
 
 ### Checkpoint 1: Foundation
 - [ ] `list_lists` works from Claude Code via the launcher, and the grant survives a rebuild. Review with the human.

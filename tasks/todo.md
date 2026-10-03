@@ -48,21 +48,21 @@
 - [x] Launched through the launcher, macOS prompts for **apple-reminders-mcp**, and `list_lists` returns the real lists. Launched directly by Claude Code, the server returns the access-denied guidance instead of crashing.
 - [x] `otool -s __TEXT __info_plist` on the server binary shows the embedded usage description.
 - [x] The end-to-end `list_lists` test passes against real Reminders. It's read-only, so it creates nothing.
-- [ ] With the `apple-reminders-mcp dev` certificate in place, rebuilding twice with `scripts/build.sh` doesn't re-prompt.
+- [x] With the `apple-reminders-mcp dev` certificate in place, rebuilding twice with `scripts/build.sh` doesn't re-prompt. *(Two content-changing rebuilds, each end-to-end run < 1 s, no prompt.)*
 
 **Verification:**
 - [x] `scripts/test.sh` (unit + launcher tests)
 - [x] `REMINDERS_MCP_INTEGRATION=1 scripts/test.sh --filter IntegrationTests`
-- [ ] `codesign -dv .build/debug/apple-reminders-mcp` shows the stable identity, not `adhoc`
+- [x] `codesign -dvv .build/debug/apple-reminders-mcp` shows `Authority=apple-reminders-mcp dev`, not `adhoc`
 
 **Dependencies:** 2
-**Files:** `Sources/RemindersEventKit/*`, `Sources/apple-reminders-mcp/{AppleRemindersMCP.swift,Info.plist}`, `Sources/apple-reminders-mcp-launch/Launcher.swift`, `Package.swift`, `scripts/build.sh`, `Tests/IntegrationTests/*`, `Tests/LauncherTests/*`, `Tests/Support/ClientHelpers.swift`
+**Files:** `Sources/RemindersEventKit/*`, `Sources/apple-reminders-mcp/{AppleRemindersMCP.swift,Info.plist}`, `Sources/apple-reminders-mcp-launch/Launcher.swift`, `Package.swift`, `scripts/{build,sign,test}.sh`, `Tests/IntegrationTests/*`, `Tests/LauncherTests/*`, `Tests/Support/ClientHelpers.swift`
 **Scope:** L. It grew during de-risking.
 
 ## Checkpoint 1: Foundation
-- [ ] All tests pass and the build is clean.
-- [ ] `list_lists` returns real data from Claude Code, registered through the launcher.
-- [ ] The grant survives a rebuild (signing).
+- [x] All tests pass and the build is clean.
+- [ ] `list_lists` returns real data from Claude Code, registered through the launcher. *(Registering changes your Claude Code config, so it's left for you to run.)*
+- [x] The grant survives a rebuild (signing).
 - [ ] **Review with the human before proceeding.**
 
 ## Phase 2: List management & the end-to-end test harness

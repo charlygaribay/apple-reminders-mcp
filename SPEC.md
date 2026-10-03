@@ -139,7 +139,8 @@ Tests/
   LauncherTests/                      → Launcher path resolution
   IntegrationTests/                   → Built launcher + server over stdio, against real Reminders (opt-in)
   Support/                            → FakeRemindersStore + MCP client helpers shared by test targets
-scripts/build.sh                      → `swift build` wrapper that signs both binaries with a stable identity
+scripts/build.sh                      → `swift build` wrapper that signs both binaries (via sign.sh)
+scripts/sign.sh                       → Signs launcher + server with the stable identity
 scripts/test.sh                       → `swift test` wrapper (Swift Testing paths under Command Line Tools)
 README.md                             → Setup, permission grant, client registration
 SPEC.md                               → This file
@@ -236,7 +237,7 @@ public actor EventKitStore: RemindersStore {
 ## Risks / Known Unknowns
 
 1. ~~**TCC permission attribution for a CLI binary.**~~ **Resolved in task 3.** macOS attributes the request to the responsible process: the MCP client, e.g. `com.anthropic.claude-code`. TCC then refuses access *without prompting*, because that app has no `NSRemindersUsageDescription` (Terminal, Claude, and VS Code don't either). The embedded plist alone doesn't help. Fix: the launcher (Resolved Decisions 4). Remaining risk: Apple could change the private spawn attribute. If the lookup fails, the launcher warns on stderr and execs normally, and the server then reports `accessDenied`.
-5. **TCC grant tied to the code signature.** Found in task 3: ad-hoc signatures change on every build, so the grant was lost after each rebuild and macOS re-prompted. Fixed by stable signing (Resolved Decisions 5). The grant is also per binary path, so the installed copy gets its own one-time prompt.
+5. **TCC grant tied to the code signature.** Found in task 3: ad-hoc signatures change on every build, so the grant was lost after each rebuild and macOS re-prompted. Fixed by stable signing (Resolved Decisions 5). One trap: `swift test` relinks the executables whenever its flags differ from the last build, which silently restores ad-hoc signatures. `scripts/test.sh` therefore builds, signs, and then runs `swift test --skip-build`. The grant is also per binary path, so the installed copy gets its own one-time prompt. Verified 2026-10-03: two rebuilds with different content kept the grant.
 2. ~~**Swift Testing with Command Line Tools only.**~~ **Resolved in task 1:** CLT ships `Testing.framework`, but SwiftPM doesn't search it. `scripts/test.sh` adds the `-F`/rpath flags when CLT is the active developer dir.
 3. **swift-sdk is pre-1.0 (0.12.x).** APIs may change, so pin to `.upToNextMinor(from: "0.12.1")`.
 4. **Read-only / shared lists.** Some lists can't be modified (`allowsContentModifications == false`), so the store must surface `readOnlyList` instead of failing obscurely.

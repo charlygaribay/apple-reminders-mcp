@@ -1,31 +1,32 @@
 #!/bin/sh
 # Runs `swift test`, forwarding all arguments.
-# With REMINDERS_MCP_INTEGRATION=1, builds the binaries first for the integration tests.
 #
-# With only the Command Line Tools installed, Swift Testing ships in the CLT
-# but isn't on SwiftPM's default search paths, so add them. With Xcode selected
-# this is a plain `swift test`.
+# With only the Command Line Tools installed, Swift Testing ships in the CLT but isn't on
+# SwiftPM's default search paths, so add them. With Xcode selected no extra flags are needed.
+#
+# With REMINDERS_MCP_INTEGRATION=1, the launcher and server binaries are signed after the
+# build and before the tests run (see scripts/sign.sh). Building and testing are separate
+# steps so that `swift test` can't relink, and thereby un-sign, the binaries afterwards.
 set -eu
-
-# Integration tests drive the built launcher and server binaries, so make sure they're current
-# and signed (see scripts/build.sh).
-if [ "${REMINDERS_MCP_INTEGRATION:-}" = "1" ]; then
-  "$(dirname "$0")/build.sh"
-fi
 
 dev_dir="$(xcode-select -p)"
 case "$dev_dir" in
   */CommandLineTools)
     fw="$dev_dir/Library/Developer/Frameworks"
     lib="$dev_dir/Library/Developer/usr/lib"
-    exec swift test \
-      -Xswiftc -F"$fw" \
-      -Xlinker -F"$fw" \
-      -Xlinker -rpath -Xlinker "$fw" \
-      -Xlinker -rpath -Xlinker "$lib" \
-      "$@"
+    # Paths under the CLT directory contain no spaces, so word splitting is safe here.
+    flags="-Xswiftc -F$fw -Xlinker -F$fw -Xlinker -rpath -Xlinker $fw -Xlinker -rpath -Xlinker $lib"
     ;;
   *)
-    exec swift test "$@"
+    flags=""
     ;;
 esac
+
+# shellcheck disable=SC2086
+swift build --build-tests $flags
+if [ "${REMINDERS_MCP_INTEGRATION:-}" = "1" ]; then
+  # shellcheck disable=SC2086
+  "$(dirname "$0")/sign.sh" "$(swift build $flags --show-bin-path)"
+fi
+# shellcheck disable=SC2086
+exec swift test --skip-build $flags "$@"
